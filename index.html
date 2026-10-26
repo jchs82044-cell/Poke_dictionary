@@ -390,7 +390,7 @@ const MOVES_BY_TYPE = {
   "땅":     [["지진",100],["대지의힘",90],["머드샷",55],["진흙뿌리기",20],["구멍파기",80],
              ["모래지옥",35],["뼈다귀부메랑",25],["진흙폭탄",65],["매그니튜드",70],["드릴라이너",80]],
   "비행":   [["쪼기",30],["제비반환",60],["브레이브버드",120],["에어슬래시",75],["공중날기",60],
-             ["에어로블라스트",110],["폭풍",110],["",80],["날개치기",60],["",90]],
+             ["에어로블라스트",110],["폭풍",110],["불새",80],["날개치기",60],["쪼아대기",50]],
   "에스퍼": [["사이코키네시스",90],["사이코쇼크",80],["사이코브레이크",100],["사이코커터",70],["염동력",50],
              ["환상빔",65],["사념의박치기",80],["미래예지",120],["미러코트",90],["사이코붐",90]],
   "벌레":   [["시저크로스",80],["벌레의야단법석",90],["덤벼들기",50],["메가혼",120],["벌레먹기",60],
@@ -450,8 +450,25 @@ POKEMON_DATA.forEach(s => SPECIES_BY_KEY[s.key] = s);
 const WILD_POOL = POKEMON_DATA.filter(s => !/\(MEGA/i.test(s.file));
 
 function spriteUrl(file){
-  return "images/" + encodeURIComponent(file);
+  return "images/" + encodeURIComponent(file.normalize("NFC"));
 }
+
+// 이미지 로드 실패 시 한글 자모 분리(NFD) 파일명으로 한 번 더 시도
+document.addEventListener("error", (e)=>{
+  const img = e.target;
+  if(!(img instanceof HTMLImageElement)) return;
+  const cur = img.getAttribute("src") || "";
+  if(img.dataset.failed === cur) return;
+  try{
+    const m = decodeURIComponent(cur).match(/^images\/(.+)$/);
+    if(!m) return;
+    const nfd = "images/" + encodeURIComponent(m[1].normalize("NFD"));
+    if(nfd === cur) return;
+    img.dataset.failed = cur;
+    img.src = nfd;
+  }catch(_){}
+}, true);
+  
 function rarityOf(dex){
   if(LEGENDARY_IDS.includes(dex)) return "rare3";
   if(dex % 10 === 0) return "rare2";
