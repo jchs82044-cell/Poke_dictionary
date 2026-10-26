@@ -449,24 +449,31 @@ POKEMON_DATA.forEach(s => SPECIES_BY_KEY[s.key] = s);
 // 야생/뽑기 풀에서는 메가 진화 형태가 절대 나오지 않도록 안전장치 (기본 데이터도 이미 메가폼을 별도 종으로 노출하지 않음)
 const WILD_POOL = POKEMON_DATA.filter(s => !/\(MEGA/i.test(s.file));
 
-function spriteUrl(file){
-  return "images/" + encodeURIComponent(file.normalize("NFC"));
+// 이미지 위치(images 폴더 / 저장소 루트)와 한글 인코딩(NFC / NFD)을 모두 시도
+const IMG_DIRS = ["images/", ""];
+function spriteCandidates(file){
+  const out = [];
+  for(const dir of IMG_DIRS){
+    for(const form of ["NFC","NFD"]){
+      out.push(dir + encodeURIComponent(file.normalize(form)));
+    }
+  }
+  return out;
 }
-
-// 이미지 로드 실패 시 한글 자모 분리(NFD) 파일명으로 한 번 더 시도
+function spriteUrl(file){
+  return spriteCandidates(file)[0];
+}
 document.addEventListener("error", (e)=>{
   const img = e.target;
   if(!(img instanceof HTMLImageElement)) return;
   const cur = img.getAttribute("src") || "";
-  if(img.dataset.failed === cur) return;
+  let file;
   try{
-    const m = decodeURIComponent(cur).match(/^images\/(.+)$/);
-    if(!m) return;
-    const nfd = "images/" + encodeURIComponent(m[1].normalize("NFD"));
-    if(nfd === cur) return;
-    img.dataset.failed = cur;
-    img.src = nfd;
-  }catch(_){}
+    file = decodeURIComponent(cur).replace(/^images\//,"").normalize("NFC");
+  }catch(_){ return; }
+  const list = spriteCandidates(file);
+  const idx = list.indexOf(cur);
+  if(idx >= 0 && idx < list.length-1) img.src = list[idx+1];
 }, true);
   
 function rarityOf(dex){
