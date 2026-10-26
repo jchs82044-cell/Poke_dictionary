@@ -450,7 +450,24 @@ POKEMON_DATA.forEach(s => SPECIES_BY_KEY[s.key] = s);
 const WILD_POOL = POKEMON_DATA.filter(s => !/\(MEGA/i.test(s.file));
 
 function spriteUrl(file){
-  return encodeURIComponent(file);
+  return "images/" + encodeURIComponent(file.normalize("NFC"));
+}
+
+// 이미지 로드 실패 시 한글 자모 분리(NFD) 파일명으로 한 번 더 시도
+document.addEventListener("error", (e)=>{
+  const img = e.target;
+  if(!(img instanceof HTMLImageElement)) return;
+  const cur = img.getAttribute("src") || "";
+  if(img.dataset.failed === cur) return;
+  try{
+    const m = decodeURIComponent(cur).match(/^images\/(.+)$/);
+    if(!m) return;
+    const nfd = "images/" + encodeURIComponent(m[1].normalize("NFD"));
+    if(nfd === cur) return;
+    img.dataset.failed = cur;
+    img.src = nfd;
+  }catch(_){}
+}, true);
 }
 function rarityOf(dex){
   if(LEGENDARY_IDS.includes(dex)) return "rare3";
