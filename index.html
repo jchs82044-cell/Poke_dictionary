@@ -460,21 +460,32 @@ function spriteCandidates(file){
   }
   return out;
 }
+// ---------- 이미지 경로 자동 감지 (1장만 시험해서 요청 폭주 방지) ----------
+const IMG_PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="#31365a"/><text x="40" y="46" font-size="28" text-anchor="middle" fill="#a3a8c2">?</text></svg>');
+let IMG_MODE = { dir: "images/", form: "NFC", ok: true };
+
 function spriteUrl(file){
-  return spriteCandidates(file)[0];
+  if(!IMG_MODE.ok) return IMG_PLACEHOLDER;
+  return IMG_MODE.dir + encodeURIComponent(file.normalize(IMG_MODE.form));
 }
-document.addEventListener("error", (e)=>{
-  const img = e.target;
-  if(!(img instanceof HTMLImageElement)) return;
-  const cur = img.getAttribute("src") || "";
-  let file;
-  try{
-    file = decodeURIComponent(cur).replace(/^images\//,"").normalize("NFC");
-  }catch(_){ return; }
-  const list = spriteCandidates(file);
-  const idx = list.indexOf(cur);
-  if(idx >= 0 && idx < list.length-1) img.src = list[idx+1];
-}, true);
+
+function probeImages(){
+  const testFile = "001. 이상해씨.png";
+  const combos = [];
+  for(const dir of ["images/", ""]) for(const form of ["NFC","NFD"]) combos.push({dir, form});
+  return combos.reduce((p, c)=> p.then(found=>{
+    if(found) return found;
+    return new Promise(res=>{
+      const im = new Image();
+      im.onload = ()=>res(c);
+      im.onerror = ()=>res(null);
+      im.src = c.dir + encodeURIComponent(testFile.normalize(c.form));
+    });
+  }), Promise.resolve(null)).then(found=>{
+    if(found){ IMG_MODE = { dir: found.dir, form: found.form, ok: true }; }
+    else { IMG_MODE.ok = false; }
+  });
+}
   
 function rarityOf(dex){
   if(LEGENDARY_IDS.includes(dex)) return "rare3";
@@ -1086,10 +1097,13 @@ document.getElementById("buyTicket1Btn").addEventListener("click", ()=>buyTicket
 document.getElementById("buyTicket10Btn").addEventListener("click", ()=>buyTicket(10));
 
 // ---------- 초기 렌더 ----------
-refreshHeader();
-refreshCollection();
-refreshTM();
-log(`게임을 시작합니다. 총 ${POKEMON_DATA.length}종의 몬스터가 준비되어 있어요. 스라크와 함께 탐험을 시작해보세요!`);
+probeImages().then(()=>{
+  refreshHeader();
+  refreshCollection();
+  refreshTM();
+  log(`게임을 시작합니다. 총 ${POKEMON_DATA.length}종의 몬스터가 준비되어 있어요. 스라크와 함께 탐험을 시작해보세요!`);
+  if(!IMG_MODE.ok) log("⚠️ 이미지 파일을 찾지 못했어요. 저장소의 images 폴더와 파일 위치를 확인해주세요.", "bad");
+});
 </script>
 </body>
 </html>
